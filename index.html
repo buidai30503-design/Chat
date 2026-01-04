@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat 2 người</title>
+  <style>
+    :root{
+      --bg: #0b1220;
+      --card: rgba(255,255,255,0.06);
+      --stroke: rgba(255,255,255,0.12);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.65);
+      --good:#2dd4bf; --warn:#fbbf24; --bad:#fb7185;
+      --shadow: 0 10px 30px rgba(0,0,0,0.45);
+      --r: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; color:var(--text);
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:
+        radial-gradient(1200px 600px at 15% 10%, rgba(45,212,191,0.22), transparent 60%),
+        radial-gradient(900px 600px at 85% 20%, rgba(59,130,246,0.22), transparent 60%),
+        radial-gradient(900px 700px at 50% 95%, rgba(251,113,133,0.18), transparent 65%),
+        var(--bg);
+      padding: 26px 14px;
+    }
+    .wrap{max-width:980px;margin:0 auto}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{
+      width:42px;height:42px;border-radius:14px;
+      background:linear-gradient(135deg, rgba(45,212,191,.9), rgba(59,130,246,.9));
+      box-shadow:var(--shadow)
+    }
+    .title{display:flex;flex-direction:column;line-height:1.2}
+    .title b{font-size:18px}
+    .title span{font-size:13px;color:var(--muted)}
+    .pill{
+      display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;
+      background:var(--card);border:1px solid var(--stroke);box-shadow:0 8px 24px rgba(0,0,0,.25);
+      font-size:13px;color:var(--muted);white-space:nowrap
+    }
+    .dot{width:10px;height:10px;border-radius:999px;background:var(--warn);box-shadow:0 0 0 4px rgba(251,191,36,.12)}
+    .dot.good{background:var(--good);box-shadow:0 0 0 4px rgba(45,212,191,.12)}
+    .dot.bad{background:var(--bad);box-shadow:0 0 0 4px rgba(251,113,133,.12)}
+    .card{
+      background:var(--card);border:1px solid var(--stroke);border-radius:var(--r);
+      box-shadow:var(--shadow);overflow:hidden
+    }
+    .cardHead{
+      padding:14px;border-bottom:1px solid var(--stroke);
+      background:rgba(255,255,255,.03);
+      display:flex;justify-content:space-between;align-items:center;gap:10px
+    }
+    .cardHead .h{display:flex;flex-direction:column;gap:2px}
+    .cardHead .h b{font-size:14px}
+    .cardHead .h span{font-size:12px;color:var(--muted)}
+    .content{padding:14px}
+    .row{display:flex;gap:10px;align-items:center}
+    .col{display:flex;flex-direction:column;gap:10px}
+    .input{
+      width:100%;padding:12px;border-radius:14px;background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.12);color:var(--text);outline:none;font-size:14px
+    }
+    .input:focus{border-color:rgba(45,212,191,.65);box-shadow:0 0 0 4px rgba(45,212,191,.14)}
+    .btn{
+      border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);
+      color:var(--text);padding:10px 12px;border-radius:14px;font-size:13px;cursor:pointer;
+      transition:transform .04s ease, background .12s ease, border-color .12s ease;
+      user-select:none;white-space:nowrap
+    }
+    .btn:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.20)}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:linear-gradient(135deg, rgba(45,212,191,.85), rgba(59,130,246,.85));border:0}
+    .btn.danger{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.28)}
+    .btn.ghost{background:transparent}
+    .btn.disabled{opacity:.55;cursor:not-allowed}
+    .toast{
+      display:none;margin-top:10px;padding:10px 12px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.25);font-size:13px;white-space:pre-wrap
+    }
+    .toast.show{display:block}
+    .toast.bad{border-color:rgba(251,113,133,.35)}
+    .toast.good{border-color:rgba(45,212,191,.35)}
+    .hidden{display:none}
+
+    /* Chat area */
+    .chatWrap{display:flex;flex-direction:column;height:calc(100vh - 170px);min-height:560px}
+    .chatBox{
+      flex:1;overflow:auto;padding:14px;
+      background:rgba(255,255,255,.02);
+    }
+    .chatBox.bg1{
+      background:
+        radial-gradient(700px 300px at 20% 0%, rgba(45,212,191,.10), transparent 60%),
+        radial-gradient(700px 300px at 90% 10%, rgba(59,130,246,.10), transparent 60%),
+        rgba(255,255,255,.02);
+    }
+    .chatBox.bg2{
+      background:
+        radial-gradient(700px 320px at 15% 20%, rgba(251,113,133,.12), transparent 60%),
+        radial-gradient(900px 420px at 80% 10%, rgba(167,139,250,.14), transparent 65%),
+        rgba(255,255,255,.02);
+    }
+    .chatBox.bg3{
+      background:
+        linear-gradient(135deg, rgba(45,212,191,.08), rgba(255,255,255,0) 45%),
+        linear-gradient(315deg, rgba(59,130,246,.08), rgba(255,255,255,0) 45%),
+        rgba(255,255,255,.02);
+    }
+    .chatBox.bg4{
+      background:
+        radial-gradient(900px 500px at 50% 0%, rgba(34,197,94,.10), transparent 60%),
+        radial-gradient(900px 520px at 70% 10%, rgba(251,191,36,.10), transparent 62%),
+        rgba(255,255,255,.02);
+    }
+
+    .bubble{
+      max-width:78%;border-radius:16px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);
+      margin:8px 0;backdrop-filter:blur(10px)
+    }
+    .bubble.me{background:rgba(45,212,191,.14);margin-left:auto;border-color:rgba(45,212,191,.28)}
+    .bubble.other{background:rgba(255,255,255,.08);margin-right:auto}
+    .bubble .txt{font-size:14px;white-space:pre-wrap;line-height:1.35}
+    .bubble .meta{margin-top:6px;font-size:12px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between;gap:10px}
+
+    .media{
+      display:flex;flex-direction:column;gap:8px;margin-top:8px
+    }
+    .media img{max-width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12)}
+    .media video{max-width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12)}
+    .fileRow{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10)}
+    .fileRow b{font-size:13px}
+    .fileRow span{font-size:12px;color:rgba(255,255,255,.60)}
+    .linkA{color:rgba(45,212,191,.95);text-decoration:none}
+    .linkA:hover{text-decoration:underline}
+
+    .composer{
+      padding:12px 14px;border-top:1px solid var(--stroke);background:rgba(255,255,255,.03);
+      display:flex;gap:10px;align-items:center
+    }
+    .iconBtn{
+      width:42px;height:42px;border-radius:14px;display:grid;place-items:center;
+      border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);cursor:pointer
+    }
+    .iconBtn:hover{background:rgba(255,255,255,.10)}
+    .sep{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
+
+    /* Modal */
+    .modalOverlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.55);
+      display:none;align-items:center;justify-content:center;padding:14px;z-index:9999;
+    }
+    .modalOverlay.show{display:flex}
+    .modal{
+      width:min(720px, 100%);max-height:85vh;overflow:auto;
+      background:rgba(20,28,46,.95);border:1px solid rgba(255,255,255,.14);
+      border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.55)
+    }
+    .modalHead{padding:14px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;align-items:center}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.10)}
+    .tab{padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);cursor:pointer;font-size:13px;color:rgba(255,255,255,.85)}
+    .tab.active{border-color:rgba(45,212,191,.55);box-shadow:0 0 0 3px rgba(45,212,191,.10)}
+    .modalBody{padding:14px}
+    .grid2{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:720px){.grid2{grid-template-columns:1fr 1fr}}
+    .bgPick{display:flex;gap:10px;flex-wrap:wrap}
+    .bgOpt{
+      width:120px;height:70px;border-radius:14px;border:1px solid rgba(255,255,255,.14);
+      cursor:pointer;position:relative;overflow:hidden
+    }
+    .bgOpt.sel{outline:3px solid rgba(45,212,191,.35)}
+    .bgOpt.bg1{background:
+      radial-gradient(120px 70px at 20% 20%, rgba(45,212,191,.35), transparent 60%),
+      radial-gradient(120px 70px at 80% 20%, rgba(59,130,246,.35), transparent 60%),
+      rgba(255,255,255,.05);}
+    .bgOpt.bg2{background:
+      radial-gradient(120px 70px at 20% 30%, rgba(251,113,133,.35), transparent 60%),
+      radial-gradient(140px 80px at 80% 20%, rgba(167,139,250,.35), transparent 60%),
+      rgba(255,255,255,.05);}
+    .bgOpt.bg3{background:
+      linear-gradient(135deg, rgba(45,212,191,.28), transparent 55%),
+      linear-gradient(315deg, rgba(59,130,246,.28), transparent 55%),
+      rgba(255,255,255,.05);}
+    .bgOpt.bg4{background:
+      radial-gradient(140px 90px at 45% 10%, rgba(34,197,94,.30), transparent 60%),
+      radial-gradient(140px 90px at 80% 20%, rgba(251,191,36,.30), transparent 60%),
+      rgba(255,255,255,.05);}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{
+      padding:10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.05)
+    }
+    .muted{color:rgba(255,255,255,.65);font-size:12px}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="title">
+        <b>Chat 2 người</b>
+        <span>Realtime • Lưu lịch sử • Gửi ảnh/video/file/link • Settings</span>
+      </div>
+    </div>
+    <div class="pill">
+      <span class="dot" id="rtDot"></span>
+      <span id="rtText">Chưa kết nối</span>
+    </div>
+  </div>
+
+  <!-- AUTH VIEW (màn hình đầu tiên) -->
+  <div class="card" id="authView">
+    <div class="cardHead">
+      <div class="h">
+        <b>Đăng nhập</b>
+        <span>Đăng nhập xong mới vào khung chat</span>
+      </div>
+      <button class="btn ghost" id="btnClear">Xoá form</button>
+    </div>
+    <div class="content">
+      <div class="col">
+        <input class="input" id="email" type="email" placeholder="Email" autocomplete="email" />
+        <input class="input" id="pass" type="password" placeholder="Mật khẩu" autocomplete="current-password" />
+        <div class="row">
+          <button class="btn primary" id="btnLogin" style="flex:1">Đăng nhập</button>
+          <button class="btn disabled" id="btnRegister" style="flex:1" title="Đăng ký đã tắt">Đăng ký (đã tắt)</button>
+        </div>
+        <div class="toast" id="authToast"></div>
+        <div class="muted">
+          Lưu ý: Project đang khóa theo UUID. Chỉ 2 tài khoản được phép đọc/gửi.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT VIEW (chỉ hiện sau login + PIN đúng) -->
+  <div class="card hidden" id="chatView">
+    <div class="cardHead">
+      <div class="h">
+        <b>Phòng chat</b>
+        <span id="whoLine">...</span>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnRefresh">Refresh</button>
+        <button class="btn" id="btnSettings">Cài đặt</button>
+        <button class="btn danger" id="btnLogout">Logout</button>
+      </div>
+    </div>
+
+    <div class="chatWrap">
+      <div class="chatBox bg1" id="chatBox"></div>
+
+      <div class="composer">
+        <label class="iconBtn" title="Gửi ảnh/video/file">
+          <input id="fileInput" type="file" class="hidden" />
+          📎
+        </label>
+        <input class="input" id="text" type="text" placeholder="Nhập tin nhắn... (Enter để gửi)" />
+        <button class="btn primary" id="btnSend">Gửi</button>
+      </div>
+
+      <div class="content" style="padding-top:10px">
+        <div class="toast" id="chatToast"></div>
+        <div class="muted" id="smallNote"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PIN MODAL -->
+<div class="modalOverlay" id="pinOverlay">
+  <div class="modal" style="width:min(520px, 100%);">
+    <div class="modalHead">
+      <b>Nhập PIN phòng chat</b>
+      <button class="btn" id="btnPinLogout">Logout</button>
+    </div>
+    <div class="modalBody">
+      <div class="item">
+        <div class="muted">Bảo vệ phòng chat. Nhập PIN để vào.</div>
+        <div class="sep"></div>
+        <input class="input" id="pinInput" inputmode="numeric" autocomplete="one-time-code" placeholder="PIN" />
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="btnPinEnter" style="flex:1">Vào phòng</button>
+        </div>
+        <div class="toast" id="pinToast"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modalOverlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modalHead">
+      <b>Cài đặt</b>
+      <button class="btn" id="btnCloseModal">Đóng</button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="settings">Cài đặt</div>
+      <div class="tab" data-tab="media">Phương tiện</div>
+      <div class="tab" data-tab="files">File</div>
+      <div class="tab" data-tab="links">Liên kết</div>
+    </div>
+
+    <div class="modalBody">
+      <div id="tab_settings">
+        <div class="grid2">
+          <div class="item">
+            <b>Nền đoạn chat</b>
+            <div class="muted">Chọn nền hiển thị cho khung chat của anh</div>
+            <div class="sep"></div>
+            <div class="bgPick" id="bgPick">
+              <div class="bgOpt bg1 sel" data-bg="bg1"></div>
+              <div class="bgOpt bg2" data-bg="bg2"></div>
+              <div class="bgOpt bg3" data-bg="bg3"></div>
+              <div class="bgOpt bg4" data-bg="bg4"></div>
+            </div>
+          </div>
+
+          <div class="item">
+            <b>Biệt danh</b>
+            <div class="muted">Biệt danh hiển thị (lưu vào Supabase)</div>
+            <div class="sep"></div>
+            <input class="input" id="nicknameInput" placeholder="Ví dụ: Anh Đại / Em ..." />
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" id="btnSaveSettings">Lưu cài đặt</button>
+              <span class="muted" id="settingsStatus"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab_media" class="hidden">
+        <div class="item">
+          <b>Phương tiện (Ảnh/Video)</b>
+          <div class="muted">Hiển thị các tin nhắn dạng ảnh/video đã gửi</div>
+          <div class="sep"></div>
+          <div class="list" id="mediaList"></div>
+        </div>
+      </div>
+
+      <div id="tab_files" class="hidden">
+        <div class="item">
+          <b>File</b>
+          <div class="muted">Danh sách file đã gửi</div>
+          <div class="sep"></div>
+          <div class="list" id="filesList"></div>
+        </div>
+      </div>
+
+      <div id="tab_links" class="hidden">
+        <div class="item">
+          <b>Liên kết</b>
+          <div class="muted">Danh sách link đã gửi</div>
+          <div class="sep"></div>
+          <div class="list" id="linksList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+  // ===== Supabase của anh =====
+  const SUPABASE_URL = "https://jwoeqnvcvospiqwodbvm.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_kl4Dmquqn0riPlF2Py6aJA_DCFd0vX7";
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const BUCKET = "chat_files";
+
+  // ===== PIN phòng chat =====
+  const CHAT_PIN = "1102";
+  const PIN_SESSION_KEY = "chat_pin_ok_v1"; // lưu trong sessionStorage
+
+  // ===== UI refs =====
+  const authView = document.getElementById("authView");
+  const chatView = document.getElementById("chatView");
+  const emailEl = document.getElementById("email");
+  const passEl  = document.getElementById("pass");
+  const btnLogin = document.getElementById("btnLogin");
+  const btnRegister = document.getElementById("btnRegister");
+  const btnClear = document.getElementById("btnClear");
+  const authToast = document.getElementById("authToast");
+
+  const chatBox = document.getElementById("chatBox");
+  const whoLine = document.getElementById("whoLine");
+  const btnLogout = document.getElementById("btnLogout");
+  const btnSend = document.getElementById("btnSend");
+  const btnRefresh = document.getElementById("btnRefresh");
+  const btnSettings = document.getElementById("btnSettings");
+  const textEl = document.getElementById("text");
+  const fileInput = document.getElementById("fileInput");
+  const chatToast = document.getElementById("chatToast");
+  const smallNote = document.getElementById("smallNote");
+
+  const rtDot = document.getElementById("rtDot");
+  const rtText = document.getElementById("rtText");
+
+  const modalOverlay = document.getElementById("modalOverlay");
+  const btnCloseModal = document.getElementById("btnCloseModal");
+  const bgPick = document.getElementById("bgPick");
+  const nicknameInput = document.getElementById("nicknameInput");
+  const btnSaveSettings = document.getElementById("btnSaveSettings");
+  const settingsStatus = document.getElementById("settingsStatus");
+
+  const mediaList = document.getElementById("mediaList");
+  const filesList = document.getElementById("filesList");
+  const linksList = document.getElementById("linksList");
+
+  const pinOverlay = document.getElementById("pinOverlay");
+  const pinInput = document.getElementById("pinInput");
+  const btnPinEnter = document.getElementById("btnPinEnter");
+  const btnPinLogout = document.getElementById("btnPinLogout");
+  const pinToast = document.getElementById("pinToast");
+
+  let myUser = null;
+  let mySettings = { chat_bg: "bg1", nickname: "" };
+  let channel = null;
+
+  // signed URL cache
+  const signedCache = new Map(); // key: file_path -> {url, expiresAt}
+
+  // ===== helpers =====
+  function show(el){ el.classList.remove("hidden"); }
+  function hide(el){ el.classList.add("hidden"); }
+
+  function setToast(el, msg, kind=""){
+    el.classList.remove("show","bad","good");
+    if(!msg){ el.textContent=""; return; }
+    el.textContent = msg;
+    el.classList.add("show");
+    if(kind==="bad") el.classList.add("bad");
+    if(kind==="good") el.classList.add("good");
+  }
+
+  function setRealtime(state, label){
+    rtDot.classList.remove("good","bad");
+    if(state==="good") rtDot.classList.add("good");
+    if(state==="bad") rtDot.classList.add("bad");
+    rtText.textContent = label;
+  }
+
+  function escapeHtml(s){
+    return String(s ?? "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function escapeAttr(s){
+    return String(s ?? "").replace(/"/g, "&quot;");
+  }
+
+  function fmtTime(iso){
+    try{ return new Date(iso).toLocaleString("vi-VN"); } catch { return iso; }
+  }
+
+  function isUrl(s){
+    try{ new URL(s); return true; } catch { return false; }
+  }
+
+  function extractFirstUrl(text){
+    const m = String(text||"").match(/https?:\/\/[^\s]+/i);
+    return m ? m[0] : null;
+  }
+
+  function applyChatBg(bg){
+    chatBox.classList.remove("bg1","bg2","bg3","bg4");
+    chatBox.classList.add(bg);
+  }
+
+  function formatBytes(bytes){
+    if(bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B","KB","MB","GB","TB"];
+    const i = Math.floor(Math.log(bytes)/Math.log(k));
+    return (bytes/Math.pow(k,i)).toFixed(i===0?0:1) + " " + sizes[i];
+  }
+
+  async function getSignedUrl(file_path){
+    if(!file_path) return null;
+    const now = Date.now();
+    const cached = signedCache.get(file_path);
+    if(cached && cached.expiresAt > now + 10_000) return cached.url;
+
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(file_path, 3600);
+
+    if(error) return null;
+    const url = data.signedUrl;
+    signedCache.set(file_path, { url, expiresAt: now + 3600_000 });
+    return url;
+  }
+
+  function linkify(escapedText){
+    return escapedText.replace(/(https?:\/\/[^\s<]+)/gi, (m) => {
+      return `<a class="linkA" href="${escapeAttr(m)}" target="_blank" rel="noopener">${escapeHtml(m)}</a>`;
+    });
+  }
+
+  function pinOk(){
+    return sessionStorage.getItem(PIN_SESSION_KEY) === "1";
+  }
+  function setPinOk(v){
+    sessionStorage.setItem(PIN_SESSION_KEY, v ? "1" : "0");
+  }
+  function openPinGate(){
+    setToast(pinToast, "");
+    pinInput.value = "";
+    pinOverlay.classList.add("show");
+    // focus nhẹ
+    setTimeout(()=>pinInput.focus(), 30);
+  }
+  function closePinGate(){
+    pinOverlay.classList.remove("show");
+  }
+
+  // ===== auth actions =====
+  btnClear.onclick = () => { emailEl.value=""; passEl.value=""; setToast(authToast,""); };
+
+  btnLogin.onclick = async () => {
+    setToast(authToast, "Đang đăng nhập...");
+    const { error } = await supabase.auth.signInWithPassword({
+      email: emailEl.value.trim(),
+      password: passEl.value
+    });
+    if(error) setToast(authToast, "Lỗi đăng nhập: " + error.message, "bad");
+  };
+
+  // ===== TẮT ĐĂNG KÝ USER MỚI =====
+  btnRegister.onclick = async () => {
+    setToast(authToast, "Đăng ký đã tắt. Vui lòng dùng 2 tài khoản đã cấp.", "bad");
+  };
+
+  btnLogout.onclick = async () => {
+    setPinOk(false);
+    await supabase.auth.signOut();
+  };
+
+  // ===== PIN actions =====
+  btnPinLogout.onclick = async () => {
+    setPinOk(false);
+    await supabase.auth.signOut();
+  };
+  btnPinEnter.onclick = () => {
+    const v = (pinInput.value || "").trim();
+    if(v !== CHAT_PIN){
+      setToast(pinToast, "PIN sai.", "bad");
+      return;
+    }
+    setPinOk(true);
+    closePinGate();
+    // vào chat ngay
+    showChat();
+    initChatAfterPin().catch(console.error);
+  };
+  pinInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") btnPinEnter.click(); });
+
+  // ===== modal/tabs =====
+  btnSettings.onclick = async () => {
+    if(!myUser) return;
+    if(!pinOk()){
+      openPinGate();
+      return;
+    }
+    await refreshMediaFilesLinks();
+    modalOverlay.classList.add("show");
+  };
+  btnCloseModal.onclick = () => modalOverlay.classList.remove("show");
+  modalOverlay.addEventListener("click", (e) => {
+    if(e.target === modalOverlay) modalOverlay.classList.remove("show");
+  });
+
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+      tab.classList.add("active");
+      const name = tab.dataset.tab;
+      ["settings","media","files","links"].forEach(n=>{
+        const el = document.getElementById("tab_"+n);
+        if(n===name) el.classList.remove("hidden"); else el.classList.add("hidden");
+      });
+    };
+  });
+
+  // bg pick
+  bgPick.addEventListener("click", (e) => {
+    const opt = e.target.closest(".bgOpt");
+    if(!opt) return;
+    const bg = opt.dataset.bg;
+    document.querySelectorAll(".bgOpt").forEach(x=>x.classList.remove("sel"));
+    opt.classList.add("sel");
+    mySettings.chat_bg = bg;
+    applyChatBg(bg);
+  });
+
+  // save settings -> upsert user_settings
+  btnSaveSettings.onclick = async () => {
+    if(!myUser) return;
+    settingsStatus.textContent = "Đang lưu...";
+    const nickname = nicknameInput.value.trim() || null;
+    const chat_bg = mySettings.chat_bg || "bg1";
+
+    const { error } = await supabase
+      .from("user_settings")
+      .upsert({ user_id: myUser.id, nickname, chat_bg, updated_at: new Date().toISOString() });
+
+    if(error){
+      settingsStatus.textContent = "Lỗi: " + error.message;
+      return;
+    }
+    settingsStatus.textContent = "Đã lưu";
+  };
+
+  // ===== chat actions =====
+  btnRefresh.onclick = async () => {
+    setToast(chatToast, "");
+    await loadMessages();
+  };
+
+  btnSend.onclick = sendText;
+  textEl.addEventListener("keydown", (e)=>{ if(e.key==="Enter") sendText(); });
+
+  async function sendText(){
+    if(!myUser) return;
+    if(!pinOk()){
+      openPinGate();
+      return;
+    }
+
+    const text = textEl.value.trim();
+    if(!text) return;
+    textEl.value = "";
+    setToast(chatToast,"");
+
+    const firstUrl = extractFirstUrl(text);
+
+    const r1 = await supabase.from("messages").insert({ kind: "text", text });
+    if(r1.error){
+      setToast(chatToast, "Không gửi được: " + r1.error.message, "bad");
+      return;
+    }
+
+    // Tải lại ngay (không phụ thuộc realtime)
+    await loadMessages();
+
+    if(firstUrl && isUrl(firstUrl)){
+      const r2 = await supabase.from("messages").insert({ kind: "link", link_url: firstUrl });
+      if(r2.error) console.warn("Insert link failed:", r2.error.message);
+      // cập nhật lists nếu modal đang mở
+      if(modalOverlay.classList.contains("show")) await refreshMediaFilesLinks();
+    }
+  }
+
+  // ===== send file/media =====
+  fileInput.addEventListener("change", async () => {
+    if(!myUser) return;
+    if(!pinOk()){
+      fileInput.value = "";
+      openPinGate();
+      return;
+    }
+
+    const file = fileInput.files?.[0];
+    fileInput.value = "";
+    if(!file) return;
+
+    setToast(chatToast, "Đang upload file...");
+
+    const ts = Date.now();
+    const rand = Math.random().toString(16).slice(2);
+    const safeName = file.name.replace(/[^\w.\-() ]+/g, "_");
+    const day = new Date().toISOString().slice(0,10).replaceAll("-","");
+    const path = `chat/${day}/${ts}_${rand}_${safeName}`;
+
+    const { error: upErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, { contentType: file.type || "application/octet-stream" });
+
+    if(upErr){
+      setToast(chatToast, "Upload lỗi: " + upErr.message, "bad");
+      return;
+    }
+
+    const mime = file.type || "application/octet-stream";
+    const kind =
+      mime.startsWith("image/") ? "image" :
+      mime.startsWith("video/") ? "video" : "file";
+
+    const meta = { original_name: file.name };
+
+    const { error: insErr } = await supabase.from("messages").insert({
+      kind,
+      file_path: path,
+      file_name: file.name,
+      mime_type: mime,
+      file_size: file.size,
+      meta
+    });
+
+    if(insErr){
+      setToast(chatToast, "Lưu tin file lỗi: " + insErr.message, "bad");
+      return;
+    }
+
+    // Tải lại ngay
+    await loadMessages();
+
+    setToast(chatToast, "Đã gửi file.", "good");
+    if(modalOverlay.classList.contains("show")) await refreshMediaFilesLinks();
+  });
+
+  // ===== load messages & render =====
+  async function loadMessages(){
+    if(!myUser) return;
+    if(!pinOk()) return;
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, created_at, sender, kind, text, link_url, file_path, file_name, mime_type, file_size, meta")
+      .order("id", { ascending: true })
+      .limit(800);
+
+    if(error){
+      setToast(chatToast, "Không tải được: " + error.message, "bad");
+      return;
+    }
+
+    const bubbles = [];
+    for(const m of data){
+      const isMe = (m.sender === myUser.id);
+      const klass = isMe ? "bubble me" : "bubble other";
+      const who = isMe ? (mySettings.nickname || "Bạn") : "Người kia";
+
+      let body = "";
+
+      if(m.kind === "text"){
+        const txtEsc = escapeHtml(m.text || "");
+        body = `<div class="txt">${linkify(txtEsc)}</div>`;
+      } else if(m.kind === "link"){
+        const url = m.link_url || "";
+        body = `<div class="txt"><a class="linkA" href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a></div>`;
+      } else if(m.kind === "image"){
+        const url = await getSignedUrl(m.file_path);
+        body = `
+          <div class="media">
+            ${url ? `<img src="${escapeAttr(url)}" alt="image" />` : `<div class="txt">(Không lấy được link ảnh)</div>`}
+            ${m.file_name ? `<div class="muted">${escapeHtml(m.file_name)}</div>` : ""}
+          </div>
+        `;
+      } else if(m.kind === "video"){
+        const url = await getSignedUrl(m.file_path);
+        body = `
+          <div class="media">
+            ${url ? `<video src="${escapeAttr(url)}" controls></video>` : `<div class="txt">(Không lấy được link video)</div>`}
+            ${m.file_name ? `<div class="muted">${escapeHtml(m.file_name)}</div>` : ""}
+          </div>
+        `;
+      } else { // file
+        const url = await getSignedUrl(m.file_path);
+        const size = (typeof m.file_size === "number") ? formatBytes(m.file_size) : "";
+        body = `
+          <div class="fileRow">
+            <div style="font-size:18px">📄</div>
+            <div style="flex:1">
+              <b>${escapeHtml(m.file_name || "File")}</b><br/>
+              <span>${escapeHtml(size)} ${m.mime_type ? "• " + escapeHtml(m.mime_type) : ""}</span>
+            </div>
+            ${url ? `<a class="btn" href="${escapeAttr(url)}" target="_blank" rel="noopener">Tải</a>` : `<span class="muted">N/A</span>`}
+          </div>
+        `;
+      }
+
+      bubbles.push(`
+        <div class="${klass}">
+          ${body}
+          <div class="meta">
+            <span>${escapeHtml(who)}</span>
+            <span>${escapeHtml(fmtTime(m.created_at))}</span>
+          </div>
+        </div>
+      `);
+    }
+
+    chatBox.innerHTML = bubbles.join("");
+    chatBox.scrollTop = chatBox.scrollHeight;
+    smallNote.textContent = `Đã tải ${data.length} tin • ${new Date().toLocaleTimeString("vi-VN")}`;
+  }
+
+  async function refreshMediaFilesLinks(){
+    if(!myUser) return;
+    if(!pinOk()) return;
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, created_at, kind, link_url, file_path, file_name, mime_type, file_size")
+      .order("id", { ascending: false })
+      .limit(500);
+
+    if(error) return;
+
+    // media
+    const medias = data.filter(x => x.kind === "image" || x.kind === "video");
+    mediaList.innerHTML = "";
+    for(const m of medias){
+      const url = await getSignedUrl(m.file_path);
+      const t = fmtTime(m.created_at);
+      const block = document.createElement("div");
+      block.className = "item";
+      block.innerHTML = `
+        <b>${m.kind === "image" ? "Ảnh" : "Video"} • ${escapeHtml(t)}</b>
+        <div class="sep"></div>
+        ${m.kind === "image"
+          ? (url ? `<img src="${escapeAttr(url)}" style="max-width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12)" />` : `<div class="muted">Không lấy được link</div>`)
+          : (url ? `<video src="${escapeAttr(url)}" controls style="max-width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12)"></video>` : `<div class="muted">Không lấy được link</div>`)
+        }
+        <div class="muted">${escapeHtml(m.file_name || "")}</div>
+      `;
+      mediaList.appendChild(block);
+    }
+    if(medias.length === 0) mediaList.innerHTML = `<div class="muted">Chưa có phương tiện.</div>`;
+
+    // files
+    const files = data.filter(x => x.kind === "file");
+    filesList.innerHTML = "";
+    for(const m of files){
+      const url = await getSignedUrl(m.file_path);
+      const size = (typeof m.file_size === "number") ? formatBytes(m.file_size) : "";
+      const t = fmtTime(m.created_at);
+      const block = document.createElement("div");
+      block.className = "item";
+      block.innerHTML = `
+        <b>${escapeHtml(m.file_name || "File")} • ${escapeHtml(t)}</b>
+        <div class="muted">${escapeHtml(size)} ${m.mime_type ? "• "+escapeHtml(m.mime_type) : ""}</div>
+        <div class="sep"></div>
+        ${url ? `<a class="btn" href="${escapeAttr(url)}" target="_blank" rel="noopener">Tải file</a>` : `<div class="muted">Không lấy được link tải</div>`}
+      `;
+      filesList.appendChild(block);
+    }
+    if(files.length === 0) filesList.innerHTML = `<div class="muted">Chưa có file.</div>`;
+
+    // links
+    const links = data.filter(x => x.kind === "link" && x.link_url);
+    linksList.innerHTML = "";
+    for(const m of links){
+      const t = fmtTime(m.created_at);
+      const url = m.link_url || "";
+      const block = document.createElement("div");
+      block.className = "item";
+      block.innerHTML = `
+        <b>${escapeHtml(t)}</b>
+        <div class="sep"></div>
+        <a class="linkA" href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>
+      `;
+      linksList.appendChild(block);
+    }
+    if(links.length === 0) linksList.innerHTML = `<div class="muted">Chưa có liên kết.</div>`;
+  }
+
+  async function loadMySettings(){
+    if(!myUser) return;
+
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("nickname, chat_bg")
+      .eq("user_id", myUser.id)
+      .maybeSingle();
+
+    if(!error && data){
+      mySettings.nickname = data.nickname || "";
+      mySettings.chat_bg = data.chat_bg || "bg1";
+    } else {
+      mySettings = { nickname: "", chat_bg: "bg1" };
+      await supabase.from("user_settings").upsert({ user_id: myUser.id, nickname: null, chat_bg: "bg1" });
+    }
+
+    nicknameInput.value = mySettings.nickname || "";
+    applyChatBg(mySettings.chat_bg);
+
+    document.querySelectorAll(".bgOpt").forEach(x=>{
+      x.classList.toggle("sel", x.dataset.bg === mySettings.chat_bg);
+    });
+  }
+
+  async function subscribeRealtime(){
+    if(channel) supabase.removeChannel(channel);
+    setRealtime("", "Đang kết nối realtime...");
+
+    channel = supabase.channel("messages-live")
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, async () => {
+        // Realtime chỉ hỗ trợ, UI vẫn reload sau insert.
+        if(pinOk()) await loadMessages();
+      })
+      .subscribe((status)=>{
+        if(status === "SUBSCRIBED") setRealtime("good", "Realtime: đang hoạt động");
+        else if(status === "CHANNEL_ERROR") setRealtime("bad", "Realtime: lỗi kênh");
+        else if(status === "TIMED_OUT") setRealtime("bad", "Realtime: timeout");
+        else setRealtime("", "Realtime: " + status);
+      });
+  }
+
+  function showAuth(){
+    show(authView); hide(chatView);
+    pinOverlay.classList.remove("show");
+    modalOverlay.classList.remove("show");
+    setRealtime("", "Chưa kết nối");
+    myUser = null;
+    textEl.disabled = true;
+    btnSend.disabled = true;
+  }
+
+  function showChat(){
+    hide(authView); show(chatView);
+    textEl.disabled = false;
+    btnSend.disabled = false;
+  }
+
+  async function initChatAfterPin(){
+    if(!myUser) return;
+    if(!pinOk()) return;
+
+    whoLine.textContent = `Đăng nhập: ${myUser.email}`;
+    await loadMySettings();
+    await loadMessages();
+    await subscribeRealtime();
+  }
+
+  // ===== auth state =====
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    if(!session?.user){
+      if(channel){ supabase.removeChannel(channel); channel = null; }
+      setPinOk(false);
+      showAuth();
+      return;
+    }
+
+    myUser = session.user;
+
+    // Đã login nhưng chưa PIN -> chặn vào chat
+    hide(authView);
+    hide(chatView);
+    whoLine.textContent = `Đăng nhập: ${myUser.email}`;
+
+    if(pinOk()){
+      showChat();
+      await initChatAfterPin();
+    } else {
+      openPinGate();
+    }
+  });
+
+  // init
+  showAuth();
+
+  // restore session
+  const { data: sess } = await supabase.auth.getSession();
+  if(sess?.session?.user){
+    myUser = sess.session.user;
+    hide(authView);
+    hide(chatView);
+    if(pinOk()){
+      showChat();
+      await initChatAfterPin();
+    } else {
+      openPinGate();
+    }
+  }
+</script>
+</body>
+</html>
